@@ -14,35 +14,37 @@
  * limitations under the License.
  */
 
-package spray.revolver
+package rosrabota.webrunner
 
 import sbt._
 
-trait RevolverKeys {
+trait WebRunnerKeys {
 
-  val reStart = InputKey[AppProcess]("re-start", "Starts the application in a forked JVM (in the background). " +
+  val wr = InputKey[AppProcess]("wr", "Starts the application in a forked JVM (in the background). " +
     "If it is already running the application is first stopped and then restarted.")
 
-  val reStop = TaskKey[Unit]("re-stop", "Stops the application if it is currently running in the background")
+  val wrStop = TaskKey[Unit]("wr-stop", "Stops the application if it is currently running in the background")
 
-  val reStatus = TaskKey[Unit]("re-status", "Shows information about the application that is potentially running")
+  val wrStatus = TaskKey[Unit]("wr-status", "Shows information about the application that is potentially running")
 
-  val reStartArgs = SettingKey[Seq[String]]("re-start-args",
+  val wrStartArgs = SettingKey[Seq[String]]("wr-start-args",
     "The arguments to be passed to the applications main method when being started")
 
-  val reForkOptions = TaskKey[ForkOptions]("re-fork-options", "The options needed for the start task for forking")
+  val wrForkOptions = TaskKey[ForkOptions]("wr-fork-options", "The options needed for the start task for forking")
 
-  val reJRebelJar = SettingKey[String]("re-jrebel-jar", "The path to the JRebel JAR. Automatically initialized to " +
+  val wrJRebelJar = SettingKey[String]("wr-jrebel-jar", "The path to the JRebel JAR. Automatically initialized to " +
     "value of the `JREBEL_PATH` environment variable.")
 
-  val reColors = SettingKey[Seq[String]]("re-colors", "Colors used for tagging output from different processes")
+  val wrColors = SettingKey[Seq[String]]("wr-colors", "Colors used for tagging output from different processes")
 
   // we need this strange setup to make sure we can define a project specific default
   // we cannot put the project specific one `in Global` as it isn't Global
-  val reLogTagUnscoped = SettingKey[String]("re-log-tag", "The tag used in front of log messages for this project")
+  val wrLogTagUnscoped = SettingKey[String]("wr-log-tag", "The tag used in front of log messages for this project")
   // users should set this one, while we put the default into the unscoped variant
-  val reLogTag = reLogTagUnscoped in reStart
+  val wrLogTag = wrLogTagUnscoped in wr
 
   val debugSettings = SettingKey[Option[DebugSettings]]("debug-settings", "Settings for enabling remote JDWP debugging.")
 
+  val wrMonitorDirs = SettingKey[Seq[File]]("wr-monitor-dirs")
+  val wrMonitorFileFilter = SettingKey[FileFilter]("wr-monitor-file-filter")
 }

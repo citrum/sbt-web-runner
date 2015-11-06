@@ -14,66 +14,66 @@
  * limitations under the License.
  */
 
-package spray.revolver
+package rosrabota.webrunner
 
-import sbt._
+import rosrabota.webrunner.Actions._
+import rosrabota.webrunner.Utilities._
 import sbt.Keys._
-import Actions._
-import Utilities._
-object RevolverPlugin extends AutoPlugin {
+import sbt._
+object WebRunnerPlugin extends AutoPlugin {
 
-    object autoImport extends RevolverKeys {
-      object Revolver {
-        def settings = RevolverPlugin.settings
+    object autoImport extends WebRunnerKeys {
+      object WebRunner {
+        def settings = WebRunnerPlugin.settings
 
         def enableDebugging(port: Int = 5005, suspend: Boolean = false) =
-          debugSettings in reStart := Some(DebugSettings(port, suspend))
+          debugSettings in wr := Some(DebugSettings(port, suspend))
 
         def noColors: Seq[String] = Nil
         def basicColors = Seq("BLUE", "MAGENTA", "CYAN", "YELLOW", "GREEN")
         def basicColorsAndUnderlined = basicColors ++ basicColors.map("_"+_)
       }
 
-      val revolverSettings = RevolverPlugin.settings
+      val revolverSettings = WebRunnerPlugin.settings
     }
     import autoImport._
 
     lazy val settings = Seq(
 
-      mainClass in reStart <<= mainClass in run in Compile,
+      mainClass in wr <<= mainClass in run in Compile,
 
-      fullClasspath in reStart <<= fullClasspath in Runtime,
+      fullClasspath in wr <<= fullClasspath in Runtime,
 
-      reColors in Global in reStart := Revolver.basicColors,
+      wrColors in Global in wr := WebRunner.basicColors,
 
-      reStart <<= InputTask(startArgsParser) { args =>
-        (streams, reLogTag, thisProjectRef, reForkOptions, mainClass in reStart, fullClasspath in reStart, reStartArgs, args)
+      wr <<= InputTask(startArgsParser) { args =>
+        (streams, wrLogTag, thisProjectRef, wrForkOptions, mainClass in wr, fullClasspath in wr, wrStartArgs, args, state, wrMonitorDirs, wrMonitorFileFilter)
           .map(restartApp)
           .dependsOn(products in Compile)
       },
 
-      reStop <<= (streams, thisProjectRef).map(stopAppWithStreams),
+      wrStop <<= (streams, thisProjectRef).map(stopAppWithStreams),
 
-      reStatus <<= (streams, thisProjectRef) map showStatus,
+      wrStatus <<= (streams, thisProjectRef) map showStatus,
 
       // default: no arguments to the app
-      reStartArgs in Global := Seq.empty,
+      wrStartArgs in Global := Seq.empty,
 
       // initialize with env variable
-      reJRebelJar in Global := Option(System.getenv("JREBEL_PATH")).getOrElse(""),
+      wrJRebelJar in Global := Option(System.getenv("JREBEL_PATH")).getOrElse(""),
 
       debugSettings in Global := None,
 
-      reLogTagUnscoped <<= thisProjectRef(_.project),
+      wrLogTagUnscoped <<= thisProjectRef(_.project),
 
       // bake JRebel activation into java options for the forked JVM
-      changeJavaOptionsWithExtra(debugSettings in reStart) { (jvmOptions, jrJar, debug) =>
+      changeJavaOptionsWithExtra(debugSettings in wr) { (jvmOptions, jrJar, debug) =>
         jvmOptions ++ createJRebelAgentOption(SysoutLogger, jrJar).toSeq ++
           debug.map(_.toCmdLineArg).toSeq
       },
 
       // bundles the various parameters for forking
-      reForkOptions <<= (taskTemporaryDirectory, baseDirectory in reStart, javaOptions in reStart, outputStrategy,
+      wrForkOptions <<= (taskTemporaryDirectory, baseDirectory in wr, javaOptions in wr, outputStrategy,
         javaHome) map ( (tmp, base, jvmOptions, strategy, javaHomeDir) =>
         ForkOptions(
           javaHomeDir,
@@ -91,12 +91,20 @@ object RevolverPlugin extends AutoPlugin {
         onUnload(state)
       },
 
-      onLoad in Global <<= (onLoad in Global, reColors in reStart) { (onLoad, colors) => state =>
+      onLoad in Global <<= (onLoad in Global, wrColors in wr) { (onLoad, colors) => state =>
         val colorTags = colors.map(_.toUpperCase formatted "[%s]")
         GlobalState.update(_.copy(colorPool = collection.immutable.Queue(colorTags: _*)))
         onLoad(state)
+      },
+
+      wrMonitorDirs := (sourceDirectories in Compile).value ++ (resourceDirectories in Compile).value,
+      wrMonitorFileFilter := new FileFilter {
+        override def accept(pathname: File): Boolean = {
+          val fileName = pathname.getName
+          fileName.endsWith(".scala") || fileName.endsWith(".java")
+        }
       }
-    )
+  )
 
     override def requires = sbt.plugins.JvmPlugin
     override def trigger  = allRequirements
@@ -110,5 +118,5 @@ object RevolverPlugin extends AutoPlugin {
     changeJavaOptionsWithExtra(sbt.Keys.baseDirectory /* just an ignored dummy */)((jvmArgs, path, _) => f(jvmArgs, path))
 
   def changeJavaOptionsWithExtra[T](extra: SettingKey[T])(f: (Seq[String], String, T) => Seq[String]): Setting[_] =
-    javaOptions in reStart <<= (javaOptions, reJRebelJar, extra) map f
+    javaOptions in wr <<= (javaOptions, wrJRebelJar, extra) map f
 }

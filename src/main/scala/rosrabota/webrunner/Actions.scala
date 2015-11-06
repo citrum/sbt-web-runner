@@ -14,23 +14,30 @@
  * limitations under the License.
  */
 
-package spray.revolver
+package rosrabota.webrunner
 
+import java.io.File
+
+import rosrabota.webrunner.server.WebServer
 import sbt.Keys._
 import sbt._
-import java.io.File
 
 object Actions {
   import Utilities._
 
   def restartApp(streams: TaskStreams, logTag: String, project: ProjectRef, option: ForkOptions, mainClass: Option[String],
-                 cp: Classpath, args: Seq[String], startConfig: ExtraCmdLineOptions): AppProcess = {
+                 cp: Classpath, args: Seq[String], startConfig: ExtraCmdLineOptions,
+                 state: State, monitorDirs: Seq[File], monitorFileFilter: FileFilter): AppProcess = {
     stopAppWithStreams(streams, project)
-    startApp(streams, logTag, project, option, mainClass, cp, args, startConfig)
+    val fileWatcherThread: FileWatcherThread = GlobalState.get().getProcess(project) match {
+      case Some(app) => app.fileWatcherThread
+      case None => new FileWatcherThread(streams, state, monitorDirs, monitorFileFilter)
+    }
+    startApp(streams, logTag, project, option, mainClass, cp, args, startConfig, fileWatcherThread)
   }
 
   def startApp(streams: TaskStreams, logTag: String, project: ProjectRef, options: ForkOptions, mainClass: Option[String],
-               cp: Classpath, args: Seq[String], startConfig: ExtraCmdLineOptions): AppProcess = {
+               cp: Classpath, args: Seq[String], startConfig: ExtraCmdLineOptions, fileWatcherThread: FileWatcherThread): AppProcess = {
     assert(!revolverState.getProcess(project).exists(_.isRunning))
 
     // fail early
@@ -39,12 +46,16 @@ object Actions {
     val logger = new SysoutLogger(logTag, color, streams.log.ansiCodesSupported)
     colorLogger(streams.log).info("[YELLOW]Starting application %s in the background ..." format formatAppName(project.project, color))
 
-    val appProcess=
-      AppProcess(project, color, logger) {
+    val appProcess =
+      AppProcess(project, color, logger, fileWatcherThread) {
         forkRun(options, theMainClass, cp.map(_.data), args ++ startConfig.startArgs, logger, startConfig.jvmArgs)
       }
     registerAppProcess(project, appProcess)
     appProcess
+  }
+
+  def runFileWatcher(): Unit = {
+
   }
 
   def stopAppWithStreams(streams: TaskStreams, project: ProjectRef) = stopApp(colorLogger(streams.log), project)
@@ -89,12 +100,12 @@ object Actions {
     } else None
   }
 
-  def updateState(f: RevolverState => RevolverState): Unit = GlobalState.update(f)
-  def updateStateAndGet[T](f: RevolverState => (RevolverState, T)): T = GlobalState.updateAndGet(f)
-  def revolverState: RevolverState = GlobalState.get()
+  def updateState(f: WebRunnerState => WebRunnerState): Unit = GlobalState.update(f)
+  def updateStateAndGet[T](f: WebRunnerState => (WebRunnerState, T)): T = GlobalState.updateAndGet(f)
+  def revolverState: WebRunnerState = GlobalState.get()
 
   def registerAppProcess(project: ProjectRef, process: AppProcess) =
-    updateState { state =>
+    updateState {state =>
       // before we overwrite the process entry we have to make sure the old
       // project is really closed to avoid the unlikely (impossible?) race condition that we
       // have started two processes concurrently but only register the second one
@@ -108,15 +119,15 @@ object Actions {
 
   case class ExtraCmdLineOptions(jvmArgs: Seq[String], startArgs: Seq[String])
 
-  import complete.Parsers._
   import complete.Parser._
+  import complete.Parsers._
   val spaceDelimitedWithoutDashes =
-          (token(Space) ~> (token(NotSpace, "<args>") - "---")).* <~ SpaceClass.*
+    (token(Space) ~> (token(NotSpace, "<args>") & not("---", "Excluded"))).* <~ SpaceClass.*
   /*
    * A parser which parses additional options to the start task of the form
    * <arg1> <arg2> ... <argN> --- <jvmArg1> <jvmArg2> ... <jvmArgN>
    */
-  val startArgsParser: State => complete.Parser[ExtraCmdLineOptions] = { (state: State) =>
+  val startArgsParser: State => complete.Parser[ExtraCmdLineOptions] = {(state: State) =>
     (spaceDelimitedWithoutDashes ~ (SpaceClass.* ~ "---" ~ SpaceClass.* ~> spaceDelimited("<jvm-args>")).?) map {
       case (a, b) =>
         ExtraCmdLineOptions(b.getOrElse(Nil), a)
@@ -126,7 +137,7 @@ object Actions {
   def formatApp(process: AppProcess, color: String = "[YELLOW]"): String =
     formatAppName(process.projectName, process.consoleColor, color)
   def formatAppName(projectName: String, projectColor: String, color: String = "[YELLOW]"): String =
-    "[RESET]%s%s[RESET]%s" format (projectColor, projectName, color)
+    "[RESET]%s%s[RESET]%s" format(projectColor, projectName, color)
 
   def forkRun(config: ForkOptions, mainClass: String, classpath: Seq[File], options: Seq[String], log: Logger, extraJvmArgs: Seq[String]): Process = {
     log.info(options.mkString("Starting " + mainClass + ".main(", ", ", ")"))
@@ -138,4 +149,9 @@ object Actions {
 
     Fork.java.fork(newOptions, scalaOptions)
   }
+
+  /////////////////////
+  val webServer = new WebServer("127.0.0.1", 9002)
+  webServer.start()
+  println("WebServer started")
 }

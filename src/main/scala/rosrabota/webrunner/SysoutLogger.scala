@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package spray.revolver
+package rosrabota.webrunner
 
 import sbt._
 

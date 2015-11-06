@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
-package spray.revolver
+package rosrabota.webrunner
 
 import java.lang.{Runtime => JRuntime}
-import sbt.{ProjectRef, Logger, Process}
+
+import sbt.{Logger, Process, ProjectRef}
 
 /**
  * A token which we put into the SBT state to hold the Process of an application running in the background.
  */
-case class AppProcess(projectRef: ProjectRef, consoleColor: String, log: Logger)(process: Process) {
+case class AppProcess(projectRef: ProjectRef, consoleColor: String, log: Logger, fileWatcherThread: FileWatcherThread)(process: Process) {
+  if (!fileWatcherThread.isAlive) fileWatcherThread.start()
+
   val shutdownHook = createShutdownHook("... killing ...")
 
   def createShutdownHook(msg: => String) =
@@ -30,7 +33,7 @@ case class AppProcess(projectRef: ProjectRef, consoleColor: String, log: Logger)
       def run() {
         if (isRunning) {
           log.info(msg)
-          process.destroy()
+          killProcess()
         }
       }
     })
@@ -50,14 +53,35 @@ case class AppProcess(projectRef: ProjectRef, consoleColor: String, log: Logger)
     thread.start()
     thread
   }
+
   def projectName: String = projectRef.project
+
+  def isCompiling: Boolean = fileWatcherThread.isCompiling
+
+  def state: String =
+    if (isCompiling) "compiling"
+    else if (isRunning) "running"
+    else "stopped"
 
   registerShutdownHook()
 
   def stop() {
-    unregisterShutdownHook()
-    process.destroy()
-    process.exitValue()
+    try {
+      fileWatcherThread.markStop()
+      unregisterShutdownHook()
+      killProcess()
+      process.exitValue()
+    } catch {
+      case e: Throwable => println("1:" + e.toString) ////////////
+    }
+  }
+
+  def killProcess(): Unit = {
+    try {
+      process.destroy()
+    } catch {
+      case e: Throwable => println("2:" + e.toString) ////////////
+    }
   }
 
   def registerShutdownHook() {
