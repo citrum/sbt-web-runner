@@ -18,9 +18,11 @@ class FileWatcher {
   }
 
   def addDirRecursively(dirFile: File): Unit = {
-    addDir(dirFile)
-    for (subFile <- dirFile.listFiles() if subFile.isDirectory) {
-      addDirRecursively(subFile)
+    if (dirFile.exists() && dirFile.isDirectory) {
+      addDir(dirFile)
+      for (subFile <- dirFile.listFiles() if subFile.isDirectory) {
+        addDirRecursively(subFile)
+      }
     }
   }
 

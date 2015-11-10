@@ -87,12 +87,9 @@ object Actions {
   def createJRebelAgentOption(log: Logger, path: String): Option[String] = {
     if (!path.trim.isEmpty) {
       val file = new File(path)
-      if (!file.exists || !file.isFile) {
-        val file2 = new File(file, "jrebel.jar")
-        if (!file2.exists || !file2.isFile) {
-          log.warn("jrebel.jar: " + path + " not found")
-          None
-        } else Some("-javaagent:" + file2.getAbsolutePath)
+      if (!file.exists) {
+        log.warn("jrebel: " + path + " not found")
+        None
       } else Some("-javaagent:" + path)
     } else None
   }

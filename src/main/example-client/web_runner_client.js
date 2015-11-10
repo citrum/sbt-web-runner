@@ -5,7 +5,7 @@ goog.require('goog.net.cookies');
 var domain = 'example.com';
 var evtSource = new EventSource("http://127.0.0.1:9002/");
 
-var autoReloadCookie = '↻';
+var autoReloadCookie = '_autoreload';
 var cookieMaxAgeSeconds = 365 * 3600 * 24;
 
 var autoReload = goog.net.cookies.get(autoReloadCookie, 0);
