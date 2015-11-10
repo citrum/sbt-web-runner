@@ -17,59 +17,56 @@
 package rosrabota.webrunner
 
 import java.io.File
+import java.net.BindException
 
 import rosrabota.webrunner.server.WebServer
 import sbt.Keys._
 import sbt._
 
 object Actions {
-  import Utilities._
-
-  def restartApp(streams: TaskStreams, logTag: String, project: ProjectRef, option: ForkOptions, mainClass: Option[String],
-                 cp: Classpath, args: Seq[String], startConfig: ExtraCmdLineOptions,
-                 state: State, monitorDirs: Seq[File], monitorFileFilter: FileFilter): AppProcess = {
-    stopAppWithStreams(streams, project)
+  def restartApp(streams: TaskStreams, project: ProjectRef, options: ForkOptions, mainClass: Option[String],
+                 cp: Classpath, args: Seq[String], state: State, monitorDirs: Seq[File], monitorFileFilter: FileFilter,
+                 jRebelJar: String, showJRebelMessages: Boolean): AppProcess = {
+    stopApp(streams.log, project, logIfNotStarted = false)
+    val withJRebel: Boolean = jRebelJar.nonEmpty
     val fileWatcherThread: FileWatcherThread = GlobalState.get().getProcess(project) match {
       case Some(app) => app.fileWatcherThread
-      case None => new FileWatcherThread(streams, state, monitorDirs, monitorFileFilter)
+      case None => new FileWatcherThread(streams, state, monitorDirs, monitorFileFilter, withJRebel)
     }
-    startApp(streams, logTag, project, option, mainClass, cp, args, startConfig, fileWatcherThread)
+    startApp(streams, project, options, mainClass, cp, args, fileWatcherThread, withJRebel, showJRebelMessages)
   }
 
-  def startApp(streams: TaskStreams, logTag: String, project: ProjectRef, options: ForkOptions, mainClass: Option[String],
-               cp: Classpath, args: Seq[String], startConfig: ExtraCmdLineOptions, fileWatcherThread: FileWatcherThread): AppProcess = {
+  def startApp(streams: TaskStreams, project: ProjectRef, options: ForkOptions, mainClass: Option[String],
+               cp: Classpath, args: Seq[String], fileWatcherThread: FileWatcherThread,
+               withJRebel: Boolean, showJRebelMessages: Boolean): AppProcess = {
     assert(!revolverState.getProcess(project).exists(_.isRunning))
 
     // fail early
     val theMainClass = mainClass.getOrElse(sys.error("No main class detected!"))
-    val color = updateStateAndGet(_.takeColor)
-    val logger = new SysoutLogger(logTag, color, streams.log.ansiCodesSupported)
-    colorLogger(streams.log).info("[YELLOW]Starting application %s in the background ..." format formatAppName(project.project, color))
+    val logger = new SysoutLogger("wr", showJRebelMessages)
+    streams.log.info(Colors.yellow("Starting application " + project.project + " in the background, ") +
+      (if (withJRebel) Colors.green("with JRebel") else Colors.red("no JRebel")))
 
     val appProcess =
-      AppProcess(project, color, logger, fileWatcherThread) {
-        forkRun(options, theMainClass, cp.map(_.data), args ++ startConfig.startArgs, logger, startConfig.jvmArgs)
+      AppProcess(project, logger, fileWatcherThread) {
+        forkRun(options, theMainClass, cp.map(_.data), args, logger, Nil)
       }
     registerAppProcess(project, appProcess)
     appProcess
   }
 
-  def runFileWatcher(): Unit = {
+  def stopAppWithStreams(streams: TaskStreams, project: ProjectRef) = stopApp(streams.log, project)
 
-  }
-
-  def stopAppWithStreams(streams: TaskStreams, project: ProjectRef) = stopApp(colorLogger(streams.log), project)
-
-  def stopApp(log: Logger, project: ProjectRef): Unit = {
+  def stopApp(log: Logger, project: ProjectRef, logIfNotStarted: Boolean = true): Unit = {
     revolverState.getProcess(project) match {
       case Some(appProcess) =>
         if (appProcess.isRunning) {
-          log.info("[YELLOW]Stopping application %s (by killing the forked JVM) ..." format formatApp(appProcess))
+          log.info(Colors.yellow("Stopping application " + appProcess.projectName + " (by killing the forked JVM) ..."))
 
           appProcess.stop()
         }
       case None =>
-        log.info("[YELLOW]Application %s not yet started" format formatAppName(project.project, "[BOLD]"))
+        if (logIfNotStarted) log.info(Colors.yellow("Application " + project.project + " not yet started"))
     }
     unregisterAppProcess(project)
   }
@@ -78,12 +75,12 @@ object Actions {
     revolverState.runningProjects.foreach(stopApp(log, _))
 
   def showStatus(streams: TaskStreams, project: ProjectRef): Unit =
-    colorLogger(streams.log).info {
+    streams.log.info {
       revolverState.getProcess(project).find(_.isRunning) match {
         case Some(appProcess) =>
-          "[GREEN]Application %s is currently running" format formatApp(appProcess, color = "[GREEN]")
+          Colors.green("Application " + appProcess.projectName + " is currently running")
         case None =>
-          "[YELLOW]Application %s is currently NOT running" format formatAppName(project.project, "[BOLD]")
+          Colors.yellow("Application " + project.project + " is currently NOT running")
       }
     }
 
@@ -119,26 +116,6 @@ object Actions {
 
   case class ExtraCmdLineOptions(jvmArgs: Seq[String], startArgs: Seq[String])
 
-  import complete.Parser._
-  import complete.Parsers._
-  val spaceDelimitedWithoutDashes =
-    (token(Space) ~> (token(NotSpace, "<args>") & not("---", "Excluded"))).* <~ SpaceClass.*
-  /*
-   * A parser which parses additional options to the start task of the form
-   * <arg1> <arg2> ... <argN> --- <jvmArg1> <jvmArg2> ... <jvmArgN>
-   */
-  val startArgsParser: State => complete.Parser[ExtraCmdLineOptions] = {(state: State) =>
-    (spaceDelimitedWithoutDashes ~ (SpaceClass.* ~ "---" ~ SpaceClass.* ~> spaceDelimited("<jvm-args>")).?) map {
-      case (a, b) =>
-        ExtraCmdLineOptions(b.getOrElse(Nil), a)
-    }
-  }
-
-  def formatApp(process: AppProcess, color: String = "[YELLOW]"): String =
-    formatAppName(process.projectName, process.consoleColor, color)
-  def formatAppName(projectName: String, projectColor: String, color: String = "[YELLOW]"): String =
-    "[RESET]%s%s[RESET]%s" format(projectColor, projectName, color)
-
   def forkRun(config: ForkOptions, mainClass: String, classpath: Seq[File], options: Seq[String], log: Logger, extraJvmArgs: Seq[String]): Process = {
     log.info(options.mkString("Starting " + mainClass + ".main(", ", ", ")"))
     val scalaOptions = "-classpath" :: Path.makeString(classpath) :: mainClass :: options.toList
@@ -150,8 +127,25 @@ object Actions {
     Fork.java.fork(newOptions, scalaOptions)
   }
 
-  /////////////////////
-  val webServer = new WebServer("127.0.0.1", 9002)
-  webServer.start()
-  println("WebServer started")
+  var webServer: WebServer = null
+
+  def startWebServer(host: String, port: Int, log: Logger): Unit = {
+    if (webServer == null && port != 0) {
+      try {
+        webServer = new WebServer(host, port)
+        webServer.start()
+        log.info("WebRunner server started on " + host + ":" + port)
+      } catch {
+        case e: BindException =>
+          log.error("Cannot start WebRunner server on " + host + ":" + port + " because of: " + e.getMessage)
+      }
+    }
+  }
+
+  def stopWebServer(): Unit = {
+    if (webServer != null) {
+      webServer.stop()
+      webServer = null
+    }
+  }
 }

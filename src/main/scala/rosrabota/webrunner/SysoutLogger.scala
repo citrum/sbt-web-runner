@@ -21,7 +21,7 @@ import sbt._
 /**
  * A logger which logs directly with println to be used in situations where no streams are available
  */
-class SysoutLogger(appName: String, color: String, ansiCodesSupported: Boolean = false) extends Logger {
+class SysoutLogger(appName: String, showJRebelMessages: Boolean) extends Logger {
 
   def trace(t: => Throwable) {
     t.printStackTrace()
@@ -29,17 +29,26 @@ class SysoutLogger(appName: String, color: String, ansiCodesSupported: Boolean =
   }
 
   def success(message: => String) {
-    println(Utilities.colorize(ansiCodesSupported, "%s%s[RESET] success: " format (color, appName)) + message)
+    println(Colors.green(appName) + " success: " + message)
   }
 
   def log(level: Level.Value, message: => String) {
-    val levelStr = level match {
-      case Level.Info => ""
-      case Level.Error => "[ERROR]"
-      case x@_ => x.toString
+    val msg = message
+    if (msg.contains(" JRebel:  ")) {
+      if (msg.contains("Trial License expired.")) {
+        println(Colors.red(appName + " " + msg))
+//      } else if (msg.contains("You are using an ")) {
+//        println(Colors.green(appName) + " JRebel started")
+      }
+    } else {
+      val levelStr = level match {
+        case Level.Info => ""
+        case Level.Error => "[ERROR]"
+        case x => x.toString
+      }
+      println(Colors.green(appName) + levelStr + " " + msg)
     }
-    println(Utilities.colorize(ansiCodesSupported, "%s%s[RESET]%s " format (color, appName, levelStr)) + message)
   }
 }
 
-object SysoutLogger extends SysoutLogger("app", "[BOLD]", false)
+object SysoutLogger extends SysoutLogger("app", showJRebelMessages = true)

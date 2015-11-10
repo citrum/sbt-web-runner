@@ -2,19 +2,30 @@ package rosrabota.webrunner
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-import rosrabota.webrunner.Utilities._
 import sbt.Keys._
 import sbt._
 
-case class FileWatcherThread(streams: TaskStreams, state: State, monitorDirs: Seq[File], monitorFileFilter: FileFilter) extends Thread {
+case class FileWatcherThread(streams: TaskStreams,
+                             state: State,
+                             monitorDirs: Seq[File],
+                             monitorFileFilter: FileFilter,
+                             withJRebel: Boolean = false) extends Thread {
   private var _compiling = false
   def isCompiling: Boolean = _compiling
 
+  private var _compileError = false
+  def isCompileError: Boolean = _compileError
+
   private var _stopping = false
-  def markStop(): Unit = _stopping = true
+  def markStop(): Unit = {
+    // При остановке этого треда есть исключение в режиме jRebelMode == false:
+    // Во время процесса компиляции нельзя останавливаться, потому что в случае ошибки компиляции,
+    // этот тред уже не сможет запустить новую перекомпиляцию при изменении исходников.
+    if (!withJRebel && _compiling) return
+    _stopping = true
+  }
 
   override def run(): Unit = {
-    println(":::::::::::::::::::: Started FileWatcher ::::::::::::::::::::")////////////
     val fileWatcher: FileWatcher = new FileWatcher
     monitorDirs.foreach(fileWatcher.addDirRecursively)
     while (!_stopping) {
@@ -23,14 +34,34 @@ case class FileWatcherThread(streams: TaskStreams, state: State, monitorDirs: Se
         GlobalState.notifyListeners()
 
         val start = System.currentTimeMillis
-        Project.runTask(compile in Compile, state).get._2.toEither.right.foreach {_ =>
-          val duration = System.currentTimeMillis - start
-          colorLogger(streams.log).info("[success] Compiled in " + duration + " ms")
+        val stopThread: Thread =
+          if (withJRebel) null
+          else {
+            val thread = new Thread() {override def run(): Unit = Project.runTask(WebRunnerPlugin.autoImport.wrStop, state)}
+            thread.start()
+            thread
+          }
+        val (afterCompileState, compileResult) = Project.runTask(compile in Compile, state).get
+        compileResult.toEither match {
+          case Right(_) =>
+            val duration = System.currentTimeMillis - start
+            streams.log.info("[success] Compiled in " + duration + " ms")
+            _compileError = false
+
+          case Left(_) =>
+            _compileError = true
         }
+
+        if (!withJRebel) stopThread.join()
         _compiling = false
         GlobalState.notifyListeners()
+
+        if (!withJRebel && !_compileError) {
+          Project.runTask(WebRunnerPlugin.autoImport.wr, afterCompileState)
+          GlobalState.notifyListeners()
+          _stopping = true
+        }
       }
     }
-    println(":::::::::::::::::::: Stopped FileWatcher ::::::::::::::::::::")////////////
   }
 }

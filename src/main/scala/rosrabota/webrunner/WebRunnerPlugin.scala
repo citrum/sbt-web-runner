@@ -17,98 +17,94 @@
 package rosrabota.webrunner
 
 import rosrabota.webrunner.Actions._
-import rosrabota.webrunner.Utilities._
 import sbt.Keys._
 import sbt._
 object WebRunnerPlugin extends AutoPlugin {
 
-    object autoImport extends WebRunnerKeys {
-      object WebRunner {
-        def settings = WebRunnerPlugin.settings
+  object autoImport extends WebRunnerKeys {
+    object WebRunner {
+      def settings = WebRunnerPlugin.settings
 
-        def enableDebugging(port: Int = 5005, suspend: Boolean = false) =
-          debugSettings in wr := Some(DebugSettings(port, suspend))
-
-        def noColors: Seq[String] = Nil
-        def basicColors = Seq("BLUE", "MAGENTA", "CYAN", "YELLOW", "GREEN")
-        def basicColorsAndUnderlined = basicColors ++ basicColors.map("_"+_)
-      }
-
-      val revolverSettings = WebRunnerPlugin.settings
+      def enableDebugging(port: Int = 5005, suspend: Boolean = false) =
+        debugSettings in wr := Some(DebugSettings(port, suspend))
     }
-    import autoImport._
 
-    lazy val settings = Seq(
+    val revolverSettings = WebRunnerPlugin.settings
+  }
+  import autoImport._
 
-      mainClass in wr <<= mainClass in run in Compile,
+  lazy val settings = Seq(
 
-      fullClasspath in wr <<= fullClasspath in Runtime,
+    mainClass in wr <<= mainClass in run in Compile,
 
-      wrColors in Global in wr := WebRunner.basicColors,
+    fullClasspath in wr <<= fullClasspath in Runtime,
 
-      wr <<= InputTask(startArgsParser) { args =>
-        (streams, wrLogTag, thisProjectRef, wrForkOptions, mainClass in wr, fullClasspath in wr, wrStartArgs, args, state, wrMonitorDirs, wrMonitorFileFilter)
-          .map(restartApp)
-          .dependsOn(products in Compile)
-      },
+    wr <<= (streams, thisProjectRef, wrForkOptions, mainClass in wr, fullClasspath in wr, wrStartArgs,
+        state, wrMonitorDirs, wrMonitorFileFilter, wrJRebelJar, wrJRebelMessages)
+        .map(restartApp)
+        .dependsOn(products in Compile),
+    aggregate in wr := false,
 
-      wrStop <<= (streams, thisProjectRef).map(stopAppWithStreams),
+    wrStop <<= (streams, thisProjectRef).map(stopAppWithStreams),
+    aggregate in wrStop := false,
 
-      wrStatus <<= (streams, thisProjectRef) map showStatus,
+    wrStatus <<= (streams, thisProjectRef) map showStatus,
+    aggregate in wrStatus := false,
 
-      // default: no arguments to the app
-      wrStartArgs in Global := Seq.empty,
+    // default: no arguments to the app
+    wrStartArgs in Global := Seq.empty,
 
-      // initialize with env variable
-      wrJRebelJar in Global := Option(System.getenv("JREBEL_PATH")).getOrElse(""),
+    // initialize with env variable
+    wrJRebelJar in Global := Option(System.getenv("JREBEL_PATH")).getOrElse(""),
+    wrJRebelMessages in Global := false,
 
-      debugSettings in Global := None,
+    debugSettings in Global := None,
 
-      wrLogTagUnscoped <<= thisProjectRef(_.project),
+    // bake JRebel activation into java options for the forked JVM
+    changeJavaOptionsWithExtra(debugSettings in wr) {(jvmOptions, jrJar, debug) =>
+      jvmOptions ++ createJRebelAgentOption(SysoutLogger, jrJar).toSeq ++
+        debug.map(_.toCmdLineArg).toSeq
+    },
 
-      // bake JRebel activation into java options for the forked JVM
-      changeJavaOptionsWithExtra(debugSettings in wr) { (jvmOptions, jrJar, debug) =>
-        jvmOptions ++ createJRebelAgentOption(SysoutLogger, jrJar).toSeq ++
-          debug.map(_.toCmdLineArg).toSeq
-      },
+    // bundles the various parameters for forking
+    wrForkOptions <<= (taskTemporaryDirectory, baseDirectory in wr, javaOptions in wr, outputStrategy, javaHome) map ((tmp, base, jvmOptions, strategy, javaHomeDir) =>
+      ForkOptions(
+        javaHomeDir,
+        strategy,
+        Nil, // bootJars is empty by default because only jars on the user's classpath should be on the boot classpath
+        workingDirectory = Some(base),
+        runJVMOptions = jvmOptions,
+        connectInput = false
+      )),
 
-      // bundles the various parameters for forking
-      wrForkOptions <<= (taskTemporaryDirectory, baseDirectory in wr, javaOptions in wr, outputStrategy,
-        javaHome) map ( (tmp, base, jvmOptions, strategy, javaHomeDir) =>
-        ForkOptions(
-          javaHomeDir,
-          strategy,
-          Nil, // bootJars is empty by default because only jars on the user's classpath should be on the boot classpath
-          workingDirectory = Some(base),
-          runJVMOptions = jvmOptions,
-          connectInput = false
-        )
-      ),
+    // stop a possibly running application if the project is reloaded and the state is reset
+    onUnload in Global ~= {onUnload => state =>
+      stopApps(state.log)
+      stopWebServer()
+      onUnload(state)
+    },
 
-      // stop a possibly running application if the project is reloaded and the state is reset
-      onUnload in Global ~= { onUnload => state =>
-        stopApps(colorLogger(state))
-        onUnload(state)
-      },
+    onLoad in Global <<= (onLoad in Global, wrWebServerHost, wrWebServerPort) {
+    (onLoad, webServerHost, webServerPort) => state =>
+      startWebServer(webServerHost, webServerPort, state.log)
+      onLoad(state)
+    },
 
-      onLoad in Global <<= (onLoad in Global, wrColors in wr) { (onLoad, colors) => state =>
-        val colorTags = colors.map(_.toUpperCase formatted "[%s]")
-        GlobalState.update(_.copy(colorPool = collection.immutable.Queue(colorTags: _*)))
-        onLoad(state)
-      },
-
-      wrMonitorDirs := (sourceDirectories in Compile).value ++ (resourceDirectories in Compile).value,
-      wrMonitorFileFilter := new FileFilter {
-        override def accept(pathname: File): Boolean = {
-          val fileName = pathname.getName
-          fileName.endsWith(".scala") || fileName.endsWith(".java")
-        }
+    wrMonitorDirs := (sourceDirectories in Compile).value ++ (resourceDirectories in Compile).value,
+    wrMonitorFileFilter := new FileFilter {
+      override def accept(pathname: File): Boolean = {
+        val fileName = pathname.getName
+        fileName.endsWith(".scala") || fileName.endsWith(".java")
       }
+    },
+
+    wrWebServerHost := "127.0.0.1",
+    wrWebServerPort := 0  // disable web-server
   )
 
-    override def requires = sbt.plugins.JvmPlugin
-    override def trigger  = allRequirements
-    override def projectSettings = settings
+  override def requires = sbt.plugins.JvmPlugin
+  override def trigger = allRequirements
+  override def projectSettings = settings
 
   /**
    * Changes javaOptions by using transformer function

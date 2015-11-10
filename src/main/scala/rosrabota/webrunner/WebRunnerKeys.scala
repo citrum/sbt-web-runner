@@ -20,7 +20,7 @@ import sbt._
 
 trait WebRunnerKeys {
 
-  val wr = InputKey[AppProcess]("wr", "Starts the application in a forked JVM (in the background). " +
+  val wr = TaskKey[AppProcess]("wr", "Starts the application in a forked JVM (in the background). " +
     "If it is already running the application is first stopped and then restarted.")
 
   val wrStop = TaskKey[Unit]("wr-stop", "Stops the application if it is currently running in the background")
@@ -34,17 +34,13 @@ trait WebRunnerKeys {
 
   val wrJRebelJar = SettingKey[String]("wr-jrebel-jar", "The path to the JRebel JAR. Automatically initialized to " +
     "value of the `JREBEL_PATH` environment variable.")
-
-  val wrColors = SettingKey[Seq[String]]("wr-colors", "Colors used for tagging output from different processes")
-
-  // we need this strange setup to make sure we can define a project specific default
-  // we cannot put the project specific one `in Global` as it isn't Global
-  val wrLogTagUnscoped = SettingKey[String]("wr-log-tag", "The tag used in front of log messages for this project")
-  // users should set this one, while we put the default into the unscoped variant
-  val wrLogTag = wrLogTagUnscoped in wr
+  val wrJRebelMessages = SettingKey[Boolean]("wr-jrebel-messages", "Show JRebel messages. Defaults to false.")
 
   val debugSettings = SettingKey[Option[DebugSettings]]("debug-settings", "Settings for enabling remote JDWP debugging.")
 
   val wrMonitorDirs = SettingKey[Seq[File]]("wr-monitor-dirs")
   val wrMonitorFileFilter = SettingKey[FileFilter]("wr-monitor-file-filter")
+
+  val wrWebServerHost = SettingKey[String]("wr-web-server-host", "Host for web server helper")
+  val wrWebServerPort = SettingKey[Int]("wr-web-server-port", "Port for web server helper")
 }

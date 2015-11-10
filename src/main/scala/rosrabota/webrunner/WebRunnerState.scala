@@ -5,34 +5,23 @@ import java.util.concurrent.atomic.AtomicReference
 import sbt.ProjectRef
 
 import scala.annotation.tailrec
-import scala.collection.immutable.Queue
 
-case class WebRunnerState(processes: Map[ProjectRef, AppProcess], colorPool: Queue[String]) {
+case class WebRunnerState(processes: Map[ProjectRef, AppProcess]) {
   def addProcess(project: ProjectRef, process: AppProcess): WebRunnerState = copy(processes = processes + (project -> process))
   private[this] def removeProcess(project: ProjectRef): WebRunnerState = copy(processes = processes - project)
   def removeProcessAndColor(project: ProjectRef): WebRunnerState =
     getProcess(project) match {
-      case Some(process) => removeProcess(project).offerColor(process.consoleColor)
+      case Some(process) => removeProcess(project)
       case None => this
     }
 
   def exists(project: ProjectRef): Boolean = processes.contains(project)
   def runningProjects: Seq[ProjectRef] = processes.keys.toSeq
   def getProcess(project: ProjectRef): Option[AppProcess] = processes.get(project)
-
-  def takeColor: (WebRunnerState, String) =
-    if (colorPool.nonEmpty) {
-      val (color, nextPool) = colorPool.dequeue
-      (copy(colorPool = nextPool), color)
-    } else (this, "")
-
-  def offerColor(color: String): WebRunnerState =
-    if (color.nonEmpty) copy(colorPool = colorPool.enqueue(color))
-    else this
 }
 
 object WebRunnerState {
-  def initial = WebRunnerState(Map.empty, Queue.empty)
+  def initial = WebRunnerState(Map.empty)
 }
 
 /**
@@ -48,7 +37,6 @@ object GlobalState {
     val newState = f(originalState)
     if (!state.compareAndSet(originalState, newState)) update(f)
     else {
-      println("---------- notifyListeners ---------")
       notifyListeners(newState)
       newState
     }
@@ -58,7 +46,6 @@ object GlobalState {
     val (newState, value) = f(originalState)
     if (!state.compareAndSet(originalState, newState)) updateAndGet(f)
     else {
-      println("---------- notifyListeners2 ---------")
       notifyListeners(newState)
       value
     }

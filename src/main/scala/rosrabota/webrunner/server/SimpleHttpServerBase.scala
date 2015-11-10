@@ -33,7 +33,7 @@ abstract class SimpleHttpServerBase(val socketAddress: String = "127.0.0.1",
     server.start()
   }
 
-  def stop(delay: Int = 1) {
+  def stop(delay: Int = 0) {
     server.stop(delay)
   }
 
