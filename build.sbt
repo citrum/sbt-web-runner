@@ -1,6 +1,6 @@
 sbtPlugin := true
 
-scalacOptions := Seq("-deprecation", "-encoding", "utf8")
+scalacOptions := Seq("-deprecation", "-encoding", "utf8", "-unchecked", "-deprecation", "-feature", "-language:existentials")
 
 ///////////////
 // ls-sbt

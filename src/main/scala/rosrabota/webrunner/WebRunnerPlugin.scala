@@ -39,10 +39,20 @@ object WebRunnerPlugin extends AutoPlugin {
 
     fullClasspath in wr <<= fullClasspath in Runtime,
 
-    wr <<= (streams, thisProjectRef, wrForkOptions, mainClass in wr, fullClasspath in wr, wrStartArgs,
-        state, wrMonitorDirs, wrMonitorFileFilter, wrJRebelJar, wrJRebelMessages)
-        .map(restartApp)
-        .dependsOn(products in Compile),
+    wr := {
+      val state = Keys.state.value
+      val streams = Keys.streams.value
+      val project = thisProjectRef.value
+      startWebServer(wrWebServerHost.value, wrWebServerPort.value, state.log)
+      stopApp(streams.log, project, logIfNotStarted = false)
+      val withJRebel: Boolean = wrJRebelJar.value.nonEmpty
+      val fileWatcherThread: FileWatcherThread = GlobalState.get().getProcess(project) match {
+        case Some(app) => app.fileWatcherThread
+        case None => new FileWatcherThread(streams, state, wrMonitorDirs.value, wrMonitorFileFilter.value, withJRebel)
+      }
+      startApp(streams, project, wrForkOptions.value, (mainClass in wr).value,
+        (fullClasspath in wr).value, wrStartArgs.value, fileWatcherThread, withJRebel, wrJRebelMessages.value)
+    },
     aggregate in wr := false,
 
     wrStop <<= (streams, thisProjectRef).map(stopAppWithStreams),
@@ -82,12 +92,6 @@ object WebRunnerPlugin extends AutoPlugin {
       stopApps(state.log)
       stopWebServer()
       onUnload(state)
-    },
-
-    onLoad in Global <<= (onLoad in Global, wrWebServerHost, wrWebServerPort) {
-    (onLoad, webServerHost, webServerPort) => state =>
-      startWebServer(webServerHost, webServerPort, state.log)
-      onLoad(state)
     },
 
     wrMonitorDirs := (sourceDirectories in Compile).value ++ (resourceDirectories in Compile).value,

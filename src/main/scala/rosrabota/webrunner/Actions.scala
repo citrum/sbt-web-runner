@@ -24,18 +24,6 @@ import sbt.Keys._
 import sbt._
 
 object Actions {
-  def restartApp(streams: TaskStreams, project: ProjectRef, options: ForkOptions, mainClass: Option[String],
-                 cp: Classpath, args: Seq[String], state: State, monitorDirs: Seq[File], monitorFileFilter: FileFilter,
-                 jRebelJar: String, showJRebelMessages: Boolean): AppProcess = {
-    stopApp(streams.log, project, logIfNotStarted = false)
-    val withJRebel: Boolean = jRebelJar.nonEmpty
-    val fileWatcherThread: FileWatcherThread = GlobalState.get().getProcess(project) match {
-      case Some(app) => app.fileWatcherThread
-      case None => new FileWatcherThread(streams, state, monitorDirs, monitorFileFilter, withJRebel)
-    }
-    startApp(streams, project, options, mainClass, cp, args, fileWatcherThread, withJRebel, showJRebelMessages)
-  }
-
   def startApp(streams: TaskStreams, project: ProjectRef, options: ForkOptions, mainClass: Option[String],
                cp: Classpath, args: Seq[String], fileWatcherThread: FileWatcherThread,
                withJRebel: Boolean, showJRebelMessages: Boolean): AppProcess = {
