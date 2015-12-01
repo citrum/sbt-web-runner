@@ -34,12 +34,12 @@ class SysoutLogger(appName: String, showJRebelMessages: Boolean) extends Logger 
 
   def log(level: Level.Value, message: => String) {
     val msg = message
-    if (msg.contains(" JRebel:  ")) {
-      if (msg.contains("Trial License expired.")) {
+    if (!showJRebelMessages && msg.contains(" JRebel:  ")) {
+      if (msg.contains("Trial License expired.") || msg.contains("UNABLE")) {
         println(Colors.red(appName + " " + msg))
+      }
 //      } else if (msg.contains("You are using an ")) {
 //        println(Colors.green(appName) + " JRebel started")
-      }
     } else {
       val levelStr = level match {
         case Level.Info => ""
