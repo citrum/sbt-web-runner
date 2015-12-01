@@ -12,7 +12,6 @@ var autoReload = goog.net.cookies.get(autoReloadCookie, 0);
 var state = "...";
 
 var $baloon = $('<div id="web-runner-baloon">...</div>').appendTo('body');
-$baloon.click(toggleAutoReload);
 
 evtSource.onmessage = function(e) {
   var newState = JSON.parse(e.data)['state'];
@@ -25,12 +24,14 @@ evtSource.onerror = function(e) {
   updateBaloon();
 };
 
+function updateBaloon() {
+  $baloon.html(state + " <span class='ar" + (autoReload ? 1 : 0) + "'>↻</span>").attr('class', state);
+}
+
 function toggleAutoReload() {
   autoReload ^= 1;
   goog.net.cookies.set(autoReloadCookie, autoReload ? 1 : 0, cookieMaxAgeSeconds, '/', '.' + domain);
   updateBaloon();
 }
 
-function updateBaloon() {
-  $baloon.html(state + " <span class='ar" + (autoReload ? 1 : 0) + "'>↻</span>").attr('class', state);
-}
+$baloon.click(toggleAutoReload);
