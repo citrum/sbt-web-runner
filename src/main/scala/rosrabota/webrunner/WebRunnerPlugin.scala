@@ -51,7 +51,8 @@ object WebRunnerPlugin extends AutoPlugin {
         case None => new FileWatcherThread(streams, state, wrMonitorDirs.value, wrMonitorFileFilter.value, withJRebel)
       }
       startApp(streams, project, wrForkOptions.value, (mainClass in wr).value,
-        (fullClasspath in wr).value, wrStartArgs.value, fileWatcherThread, withJRebel, wrJRebelMessages.value)
+        (fullClasspath in wr).value, wrStartArgs.value, fileWatcherThread, withJRebel, wrJRebelMessages.value,
+        wrRestartExitCode.value)
     },
     aggregate in wr := false,
 
@@ -67,6 +68,8 @@ object WebRunnerPlugin extends AutoPlugin {
     // initialize with env variable
     wrJRebelJar in Global := Option(System.getenv("JREBEL_PATH")).getOrElse(""),
     wrJRebelMessages in Global := false,
+
+    wrRestartExitCode in Global := None,
 
     debugSettings in Global := None,
 

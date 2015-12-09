@@ -23,7 +23,7 @@ import sbt.{Logger, Process, ProjectRef}
 /**
  * A token which we put into the SBT state to hold the Process of an application running in the background.
  */
-case class AppProcess(projectRef: ProjectRef, log: Logger, fileWatcherThread: FileWatcherThread)(process: Process) {
+case class AppProcess(projectRef: ProjectRef, log: Logger, fileWatcherThread: FileWatcherThread, onExit: (Int) => Any)(process: Process) {
   if (!fileWatcherThread.isAlive) fileWatcherThread.start()
 
   val shutdownHook = createShutdownHook("... killing ...")
@@ -45,9 +45,11 @@ case class AppProcess(projectRef: ProjectRef, log: Logger, fileWatcherThread: Fi
       def run() {
         val code = process.exitValue()
         finishState = Some(code)
-        log.info("... finished with exit code %d" format code)
+        log.info("... finished with exit code " + code)
+        fileWatcherThread.markStop()
         unregisterShutdownHook()
         Actions.unregisterAppProcess(projectRef)
+        onExit(code)
       }
     })
     thread.start()
@@ -71,7 +73,8 @@ case class AppProcess(projectRef: ProjectRef, log: Logger, fileWatcherThread: Fi
     fileWatcherThread.markStop()
     unregisterShutdownHook()
     killProcess()
-    process.exitValue()
+    val code = process.exitValue()
+    onExit(code)
   }
 
   def killProcess(): Unit = {

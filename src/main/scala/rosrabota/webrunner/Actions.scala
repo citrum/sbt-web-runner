@@ -26,21 +26,30 @@ import sbt._
 object Actions {
   def startApp(streams: TaskStreams, project: ProjectRef, options: ForkOptions, mainClass: Option[String],
                cp: Classpath, args: Seq[String], fileWatcherThread: FileWatcherThread,
-               withJRebel: Boolean, showJRebelMessages: Boolean): AppProcess = {
-    assert(!revolverState.getProcess(project).exists(_.isRunning))
-
-    // fail early
-    val theMainClass = mainClass.getOrElse(sys.error("No main class detected!"))
-    val logger = new SysoutLogger("wr", showJRebelMessages)
-    streams.log.info(Colors.yellow("Starting application " + project.project + " in the background, ") +
-      (if (withJRebel) Colors.green("with JRebel") else Colors.red("no JRebel")))
-
-    val appProcess =
-      AppProcess(project, logger, fileWatcherThread) {
-        forkRun(options, theMainClass, cp.map(_.data), args, logger, Nil)
+               withJRebel: Boolean, showJRebelMessages: Boolean, restartExitCode: Option[Int]): AppProcess = {
+    def onExit(code: Int): Unit = {
+      if (restartExitCode.exists(_ == code)) {
+        stopApp(streams.log, project, logIfNotStarted = false)
+        doStart()
       }
-    registerAppProcess(project, appProcess)
-    appProcess
+    }
+    def doStart(): AppProcess = {
+      assert(!revolverState.getProcess(project).exists(_.isRunning))
+
+      // fail early
+      val theMainClass = mainClass.getOrElse(sys.error("No main class detected!"))
+      val logger = new SysoutLogger("wr", showJRebelMessages)
+      streams.log.info(Colors.yellow("Starting application " + project.project + " in the background, ") +
+        (if (withJRebel) Colors.green("with JRebel") else Colors.red("no JRebel")))
+
+      val appProcess =
+        AppProcess(project, logger, fileWatcherThread, onExit) {
+          forkRun(options, theMainClass, cp.map(_.data), args, logger, Nil)
+        }
+      registerAppProcess(project, appProcess)
+      appProcess
+    }
+    doStart()
   }
 
   def stopAppWithStreams(streams: TaskStreams, project: ProjectRef) = stopApp(streams.log, project)

@@ -26,6 +26,11 @@ case class FileWatcherThread(streams: TaskStreams,
   }
 
   override def run(): Unit = {
+    if (FileWatcherThread.lastThread != null) {
+      streams.log.error("FileWatcherThread did not finished! Stopping this thread.")
+      return
+    }
+    FileWatcherThread.lastThread = this
     val fileWatcher: FileWatcher = new FileWatcher
     monitorDirs.foreach(fileWatcher.addDirRecursively)
     while (!_stopping) {
@@ -63,5 +68,13 @@ case class FileWatcherThread(streams: TaskStreams,
         }
       }
     }
+    if (FileWatcherThread.lastThread != this) {
+      streams.log.error("FileWatcherThread.lastThread != this did not finished! Stopping this thread.")
+    }
+    FileWatcherThread.lastThread = null
   }
+}
+
+object FileWatcherThread {
+  private var lastThread: FileWatcherThread = null
 }

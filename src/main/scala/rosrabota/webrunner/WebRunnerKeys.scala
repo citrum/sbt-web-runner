@@ -43,4 +43,6 @@ trait WebRunnerKeys {
 
   val wrWebServerHost = SettingKey[String]("wr-web-server-host", "Host for web server helper")
   val wrWebServerPort = SettingKey[Int]("wr-web-server-port", "Port for web server helper")
+
+  val wrRestartExitCode = SettingKey[Option[Int]]("wr-restart-exit-code", "Application will be restarted after terminating with this exit code.")
 }
