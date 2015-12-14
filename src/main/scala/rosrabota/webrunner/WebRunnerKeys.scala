@@ -23,7 +23,7 @@ trait WebRunnerKeys {
   val wr = TaskKey[AppProcess]("wr", "Starts the application in a forked JVM (in the background). " +
     "If it is already running the application is first stopped and then restarted.")
 
-  val wrStop = TaskKey[Unit]("wr-stop", "Stops the application if it is currently running in the background")
+  val ws = TaskKey[Unit]("ws", "Stops the application if it is currently running in the background")
 
   val wrStatus = TaskKey[Unit]("wr-status", "Shows information about the application that is potentially running")
 

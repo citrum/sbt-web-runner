@@ -42,7 +42,7 @@ case class FileWatcherThread(streams: TaskStreams,
         val stopThread: Thread =
           if (withJRebel) null
           else {
-            val thread = new Thread() {override def run(): Unit = Project.runTask(WebRunnerPlugin.autoImport.wrStop, state)}
+            val thread = new Thread() {override def run(): Unit = Project.runTask(WebRunnerPlugin.autoImport.ws, state)}
             thread.start()
             thread
           }

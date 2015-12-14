@@ -19,6 +19,7 @@ package rosrabota.webrunner
 import rosrabota.webrunner.Actions._
 import sbt.Keys._
 import sbt._
+
 object WebRunnerPlugin extends AutoPlugin {
 
   object autoImport extends WebRunnerKeys {
@@ -56,8 +57,8 @@ object WebRunnerPlugin extends AutoPlugin {
     },
     aggregate in wr := false,
 
-    wrStop <<= (streams, thisProjectRef).map(stopAppWithStreams),
-    aggregate in wrStop := false,
+    ws <<= (streams, thisProjectRef).map(stopAppWithStreams),
+    aggregate in ws := false,
 
     wrStatus <<= (streams, thisProjectRef) map showStatus,
     aggregate in wrStatus := false,
