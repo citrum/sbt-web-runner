@@ -49,7 +49,8 @@ object WebRunnerPlugin extends AutoPlugin {
       val withJRebel: Boolean = wrJRebelJar.value.nonEmpty
       val fileWatcherThread: FileWatcherThread = GlobalState.get().getProcess(project) match {
         case Some(app) => app.fileWatcherThread
-        case None => new FileWatcherThread(streams, state, wrMonitorDirs.value, wrMonitorFileFilter.value, withJRebel)
+        case None => new FileWatcherThread(streams, state, wrMonitorDirs.value,
+          wrMonitorFileFilter.value, wrMonitorAssetFileFilter.value, withJRebel)
       }
       startApp(streams, project, wrForkOptions.value, (mainClass in wr).value,
         (fullClasspath in wr).value, wrStartArgs.value, fileWatcherThread, withJRebel, wrJRebelMessages.value,
@@ -99,12 +100,8 @@ object WebRunnerPlugin extends AutoPlugin {
     },
 
     wrMonitorDirs := (sourceDirectories in Compile).value ++ (resourceDirectories in Compile).value,
-    wrMonitorFileFilter := new FileFilter {
-      override def accept(pathname: File): Boolean = {
-        val fileName = pathname.getName
-        fileName.endsWith(".scala") || fileName.endsWith(".java")
-      }
-    },
+    wrMonitorFileFilter := new SimpleFilter(n => n.endsWith(".scala") || n.endsWith(".java")),
+    wrMonitorAssetFileFilter := new SimpleFilter(n => n.indexOf('.') != -1),
 
     wrWebServerHost := "127.0.0.1",
     wrWebServerPort := 0  // disable web-server

@@ -9,12 +9,16 @@ case class FileWatcherThread(streams: TaskStreams,
                              state: State,
                              monitorDirs: Seq[File],
                              monitorFileFilter: FileFilter,
+                             assetFileFilter: FileFilter,
                              withJRebel: Boolean = false) extends Thread {
   private var _compiling = false
   def isCompiling: Boolean = _compiling
 
   private var _compileError = false
   def isCompileError: Boolean = _compileError
+
+  private var _assetChanged = false
+  def isAssetChanged: Boolean = _assetChanged
 
   private var _stopping = false
   def markStop(): Unit = {
@@ -33,8 +37,11 @@ case class FileWatcherThread(streams: TaskStreams,
     FileWatcherThread.lastThread = this
     val fileWatcher: FileWatcher = new FileWatcher
     monitorDirs.foreach(fileWatcher.addDirRecursively)
+    val allFilter = monitorFileFilter || assetFileFilter
     while (!_stopping) {
-      if (fileWatcher.poll(monitorFileFilter, 100, TimeUnit.MILLISECONDS)) {
+      val changed: Set[File] = fileWatcher.poll(allFilter, 100, TimeUnit.MILLISECONDS)
+
+      if (changed.exists(monitorFileFilter.accept)) {
         _compiling = true
         GlobalState.notifyListeners()
 
@@ -66,6 +73,12 @@ case class FileWatcherThread(streams: TaskStreams,
           GlobalState.notifyListeners()
           _stopping = true
         }
+      }
+      else if (changed.exists(assetFileFilter.accept)) {
+        _assetChanged = true
+        GlobalState.notifyListeners()
+        _assetChanged = false
+        GlobalState.notifyListeners()
       }
     }
     if (FileWatcherThread.lastThread != this) {

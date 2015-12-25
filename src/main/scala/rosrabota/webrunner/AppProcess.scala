@@ -60,10 +60,12 @@ case class AppProcess(projectRef: ProjectRef, log: Logger, fileWatcherThread: Fi
 
   def isCompiling: Boolean = fileWatcherThread.isCompiling
   def isCompileError: Boolean = fileWatcherThread.isCompileError
+  def isAssetChanged: Boolean = fileWatcherThread.isAssetChanged
 
   def state: String =
     if (isCompiling) "compiling"
     else if (isCompileError) "compile-error"
+    else if (isAssetChanged) "asset-changed"
     else if (isRunning) "running"
     else "stopped"
 

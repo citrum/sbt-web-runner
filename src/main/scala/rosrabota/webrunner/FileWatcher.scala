@@ -9,6 +9,7 @@ import sbt.FileFilter
 
 import scala.annotation.tailrec
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 class FileWatcher {
   private val watcher: WatchService = FileSystems.getDefault.newWatchService()
@@ -26,31 +27,38 @@ class FileWatcher {
     }
   }
 
-  def poll(filter: FileFilter): Boolean = check(watcher.poll(), filter)
-  def poll(filter: FileFilter, timeout: Long, unit: TimeUnit): Boolean = check(watcher.poll(timeout, unit), filter)
-  def take(filter: FileFilter): Unit = while (!check(watcher.take(), filter)) {}
+  def poll(filter: FileFilter): Set[File] = check(watcher.poll(), filter)
+  def poll(filter: FileFilter, timeout: Long, unit: TimeUnit): Set[File] = check(watcher.poll(timeout, unit), filter)
+  def take(filter: FileFilter): Set[File] = {
+    while (true) {
+      val files = check(watcher.take(), filter)
+      if (files.nonEmpty) return files
+    }
+    sys.error("")
+  }
 
   def close(): Unit = {
     watcher.close()
   }
 
-  @tailrec private def check(key: WatchKey, filter: FileFilter, lastResult: Boolean = false): Boolean = {
+  @tailrec private def check(key: WatchKey, filter: FileFilter, lastResult: Set[File] = Set.empty): Set[File] = {
     if (key == null) lastResult
     else {
-      val hasChangedFiles: Boolean =
-        key.pollEvents().exists { event =>
-          event.kind() match {
-            case OVERFLOW => lastResult
-            case _ =>
-              val path: JPath = event.asInstanceOf[WatchEvent[JPath]].context()
-              filter.accept(path.toFile)
-          }
+      val changedFiles: mutable.Set[File] = mutable.Set.empty
+      key.pollEvents().foreach {event =>
+        event.kind() match {
+          case OVERFLOW => changedFiles ++= lastResult
+          case _ =>
+            val path: JPath = event.asInstanceOf[WatchEvent[JPath]].context()
+            val file: File = path.toFile
+            if (filter.accept(file)) changedFiles += file
         }
+      }
       // idea сохраняет файлы через переименование, поэтому следует немного подождать, пока процесс завершится
       // это позволяет избежать короткой перекомпиляции сразу после компиляции
       key.reset()
       Thread.sleep(20)
-      check(watcher.poll(), filter, hasChangedFiles | lastResult)
+      check(watcher.poll(), filter, lastResult ++ changedFiles)
     }
   }
 }

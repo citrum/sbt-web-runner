@@ -15,7 +15,13 @@ var $baloon = $('<div id="web-runner-baloon">...</div>').appendTo('body');
 
 evtSource.onmessage = function(e) {
   var newState = JSON.parse(e.data)['state'];
-  if (autoReload && (state == 'compiling' || state == 'compile-error') && newState == 'running') window.location.reload();
+  if (autoReload) {
+    var afterCompile = (state == 'compiling' || state == 'compile-error') && newState == 'running';
+    var assetChanged = newState == 'asset-changed';
+    if (afterCompile || assetChanged) {
+      window.location.reload();
+    }
+  }
   state = newState;
   updateBaloon();
 };

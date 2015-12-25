@@ -39,7 +39,8 @@ trait WebRunnerKeys {
   val debugSettings = SettingKey[Option[DebugSettings]]("debug-settings", "Settings for enabling remote JDWP debugging.")
 
   val wrMonitorDirs = SettingKey[Seq[File]]("wr-monitor-dirs")
-  val wrMonitorFileFilter = SettingKey[FileFilter]("wr-monitor-file-filter")
+  val wrMonitorFileFilter = SettingKey[FileFilter]("wr-monitor-file-filter", "Reload app if one of this file changed")
+  val wrMonitorAssetFileFilter = SettingKey[FileFilter]("wr-monitor-asset-file-filter", "Send 'asset-changed' message state if asset file changed")
 
   val wrWebServerHost = SettingKey[String]("wr-web-server-host", "Host for web server helper")
   val wrWebServerPort = SettingKey[Int]("wr-web-server-port", "Port for web server helper")
