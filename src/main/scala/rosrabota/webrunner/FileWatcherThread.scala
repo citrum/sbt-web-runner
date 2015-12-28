@@ -10,7 +10,9 @@ case class FileWatcherThread(streams: TaskStreams,
                              monitorDirs: Seq[File],
                              monitorFileFilter: FileFilter,
                              assetFileFilter: FileFilter,
-                             withJRebel: Boolean = false) extends Thread {
+                             withJRebel: WithJRebel.Value) extends Thread {
+  private def hasJRebel: Boolean = withJRebel != WithJRebel.No
+
   private var _compiling = false
   def isCompiling: Boolean = _compiling
 
@@ -25,7 +27,7 @@ case class FileWatcherThread(streams: TaskStreams,
     // При остановке этого треда есть исключение в режиме jRebelMode == false:
     // Во время процесса компиляции нельзя останавливаться, потому что в случае ошибки компиляции,
     // этот тред уже не сможет запустить новую перекомпиляцию при изменении исходников.
-    if (!withJRebel && _compiling) return
+    if (!hasJRebel && _compiling) return
     _stopping = true
   }
 
@@ -47,7 +49,7 @@ case class FileWatcherThread(streams: TaskStreams,
 
         val start = System.currentTimeMillis
         val stopThread: Thread =
-          if (withJRebel) null
+          if (hasJRebel) null
           else {
             val thread = new Thread() {override def run(): Unit = Project.runTask(WebRunnerPlugin.autoImport.ws, state)}
             thread.start()
@@ -64,11 +66,11 @@ case class FileWatcherThread(streams: TaskStreams,
             _compileError = true
         }
 
-        if (!withJRebel) stopThread.join()
+        if (!hasJRebel) stopThread.join()
         _compiling = false
         GlobalState.notifyListeners()
 
-        if (!withJRebel && !_compileError) {
+        if (!hasJRebel && !_compileError) {
           Project.runTask(WebRunnerPlugin.autoImport.wr, afterCompileState)
           GlobalState.notifyListeners()
           _stopping = true

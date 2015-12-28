@@ -26,7 +26,7 @@ import sbt._
 object Actions {
   def startApp(streams: TaskStreams, project: ProjectRef, options: ForkOptions, mainClass: Option[String],
                cp: Classpath, args: Seq[String], fileWatcherThread: FileWatcherThread,
-               withJRebel: Boolean, showJRebelMessages: Boolean, restartExitCode: Option[Int]): AppProcess = {
+               withJRebel: WithJRebel.Value, showJRebelMessages: Boolean, restartExitCode: Option[Int]): AppProcess = {
     def onExit(code: Int): Unit = {
       if (restartExitCode.exists(_ == code)) {
         stopApp(streams.log, project, logIfNotStarted = false)
@@ -40,7 +40,7 @@ object Actions {
       val theMainClass = mainClass.getOrElse(sys.error("No main class detected!"))
       val logger = new SysoutLogger("wr", showJRebelMessages)
       streams.log.info(Colors.yellow("Starting application " + project.project + " in the background, ") +
-        (if (withJRebel) Colors.green("with JRebel") else Colors.red("no JRebel")))
+        (if (withJRebel != WithJRebel.No) Colors.green("with JRebel " + withJRebel.toString) else Colors.red("no JRebel")))
 
       val appProcess =
         AppProcess(project, logger, fileWatcherThread, onExit) {
@@ -81,13 +81,17 @@ object Actions {
       }
     }
 
-  def createJRebelAgentOption(log: Logger, path: String): Option[String] = {
-    if (!path.trim.isEmpty) {
-      val file = new File(path)
-      if (!file.exists) {
-        log.warn("jrebel: " + path + " not found")
-        None
-      } else Some("-javaagent:" + path)
+  def createJRebelAgentOption(log: Logger, jrebel5Jar: String, jrebel6So: String): Option[String] = {
+    if (!jrebel5Jar.trim.isEmpty) {
+      // jrebel 5
+      val file = new File(jrebel5Jar)
+      if (!file.exists) {log.warn("jrebel5: " + jrebel5Jar + " not found"); None}
+      else Some("-javaagent:" + jrebel5Jar)
+    } else if (!jrebel6So.trim.isEmpty) {
+      // jrebel 6
+      val file = new File(jrebel6So)
+      if (!file.exists) {log.warn("jrebel6: " + jrebel6So + " not found"); None}
+      else Some("-agentpath:" + jrebel6So)
     } else None
   }
 

@@ -2,7 +2,7 @@ name := "sbt-web-runner"
 
 organization := "rosrabota"
 
-version := "0.2-SNAPSHOT"
+version := "0.3-SNAPSHOT"
 
 publishTo := {
   val nexus = "http://nexus/"

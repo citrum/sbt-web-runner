@@ -46,7 +46,10 @@ object WebRunnerPlugin extends AutoPlugin {
       val project = thisProjectRef.value
       startWebServer(wrWebServerHost.value, wrWebServerPort.value, state.log)
       stopApp(streams.log, project, logIfNotStarted = false)
-      val withJRebel: Boolean = wrJRebelJar.value.nonEmpty
+      val withJRebel: WithJRebel.Value =
+        if (wrJRebelJar.value.nonEmpty) WithJRebel.V5
+        else if (wrJRebel6AgentPath.value.nonEmpty) WithJRebel.V6
+        else WithJRebel.No
       val fileWatcherThread: FileWatcherThread = GlobalState.get().getProcess(project) match {
         case Some(app) => app.fileWatcherThread
         case None => new FileWatcherThread(streams, state, wrMonitorDirs.value,
@@ -69,6 +72,7 @@ object WebRunnerPlugin extends AutoPlugin {
 
     // initialize with env variable
     wrJRebelJar in Global := Option(System.getenv("JREBEL_PATH")).getOrElse(""),
+    wrJRebel6AgentPath in Global := Option(System.getenv("JREBEL6_PATH")).getOrElse(""),
     wrJRebelMessages in Global := false,
 
     wrRestartExitCode in Global := None,
@@ -76,8 +80,8 @@ object WebRunnerPlugin extends AutoPlugin {
     debugSettings in Global := None,
 
     // bake JRebel activation into java options for the forked JVM
-    changeJavaOptionsWithExtra(debugSettings in wr) {(jvmOptions, jrJar, debug) =>
-      jvmOptions ++ createJRebelAgentOption(SysoutLogger, jrJar).toSeq ++
+    changeJavaOptionsWithExtra(debugSettings in wr) {(jvmOptions, jrebel5Jar, jrevel6So, debug) =>
+      jvmOptions ++ createJRebelAgentOption(SysoutLogger, jrebel5Jar, jrevel6So).toSeq ++
         debug.map(_.toCmdLineArg).toSeq
     },
 
@@ -115,9 +119,9 @@ object WebRunnerPlugin extends AutoPlugin {
    * Changes javaOptions by using transformer function
    * (javaOptions, jrebelJarPath) => newJavaOptions
    */
-  def changeJavaOptions(f: (Seq[String], String) => Seq[String]): Setting[_] =
-    changeJavaOptionsWithExtra(sbt.Keys.baseDirectory /* just an ignored dummy */)((jvmArgs, path, _) => f(jvmArgs, path))
+//  def changeJavaOptions(f: (Seq[String], String) => Seq[String]): Setting[_] =
+//    changeJavaOptionsWithExtra(sbt.Keys.baseDirectory /* just an ignored dummy */)((jvmArgs, path, _) => f(jvmArgs, path))
 
-  def changeJavaOptionsWithExtra[T](extra: SettingKey[T])(f: (Seq[String], String, T) => Seq[String]): Setting[_] =
-    javaOptions in wr <<= (javaOptions, wrJRebelJar, extra) map f
+  def changeJavaOptionsWithExtra[T](extra: SettingKey[T])(f: (Seq[String], String, String, T) => Seq[String]): Setting[_] =
+    javaOptions in wr <<= (javaOptions, wrJRebelJar, wrJRebel6AgentPath, extra) map f
 }

@@ -32,8 +32,8 @@ trait WebRunnerKeys {
 
   val wrForkOptions = TaskKey[ForkOptions]("wr-fork-options", "The options needed for the start task for forking")
 
-  val wrJRebelJar = SettingKey[String]("wr-jrebel-jar", "The path to the JRebel JAR. Automatically initialized to " +
-    "value of the `JREBEL_PATH` environment variable.")
+  val wrJRebelJar = SettingKey[String]("wr-jrebel-jar", "The path to the JRebel JAR. Automatically initialized to value of the `JREBEL_PATH` environment variable.")
+  val wrJRebel6AgentPath = SettingKey[String]("wr-jrebel6-agent-path", "The path to the JRebel6 SO. Automatically initialized to value of the `JREBEL6_PATH` environment variable.")
   val wrJRebelMessages = SettingKey[Boolean]("wr-jrebel-messages", "Show JRebel messages. Defaults to false.")
 
   val debugSettings = SettingKey[Option[DebugSettings]]("debug-settings", "Settings for enabling remote JDWP debugging.")
