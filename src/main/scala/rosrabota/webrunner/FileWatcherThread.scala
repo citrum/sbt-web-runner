@@ -64,6 +64,10 @@ case class FileWatcherThread(streams: TaskStreams,
 
           case Left(_) =>
             _compileError = true
+            // Additional paddings after failed compilation for better error log readability.
+            streams.log.info("")
+            streams.log.info("------------------------------------------------------------")
+            streams.log.info("")
         }
 
         if (!hasJRebel) stopThread.join()
