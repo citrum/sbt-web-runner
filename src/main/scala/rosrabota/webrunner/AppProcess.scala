@@ -16,6 +16,8 @@
 
 package rosrabota.webrunner
 
+import java.lang.Thread.UncaughtExceptionHandler
+import java.lang.reflect.Field
 import java.lang.{Runtime => JRuntime}
 
 import sbt.{Logger, Process, ProjectRef}
@@ -79,7 +81,19 @@ case class AppProcess(projectRef: ProjectRef, log: Logger, fileWatcherThread: Fi
     onExit(code)
   }
 
+  @SuppressWarnings(Array("deprecation"))
   def killProcess(): Unit = {
+    // Hack to silence output & error stream reading threads errors after killing process.
+    // This hack prevents pesky error "java.io.IOException: Stream closed" when process
+    // writes something to stdout/stderr AFTER receiving shutdown signal.
+    // Seems to sbt bug.
+    val outputThreadsField: Field = process.getClass.getDeclaredField("outputThreads")
+    outputThreadsField.setAccessible(true)
+    val outputThreads: Seq[Thread] = outputThreadsField.get(process).asInstanceOf[Seq[Thread]]
+    outputThreads.foreach(_.setUncaughtExceptionHandler(new UncaughtExceptionHandler {
+      override def uncaughtException(t: Thread, e: Throwable): Unit = {} // just ignore exceptions
+    }))
+
     process.destroy()
   }
 
