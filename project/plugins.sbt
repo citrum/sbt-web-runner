@@ -1,3 +1,5 @@
-addSbtPlugin("me.lessis" % "ls-sbt" % "0.1.3")
+// Comment to get more information during initialization
+logLevel := Level.Info
 
-//addSbtPlugin("me.lessis" % "bintray-sbt" % "0.3.0")
+// For publishing to bintray
+addSbtPlugin("me.lessis" % "bintray-sbt" % "0.3.0")

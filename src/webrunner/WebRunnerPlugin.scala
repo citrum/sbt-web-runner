@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package rosrabota.webrunner
+package webrunner
 
-import rosrabota.webrunner.Actions._
+import webrunner.Actions._
 import sbt.Keys._
 import sbt._
 
@@ -34,7 +34,7 @@ object WebRunnerPlugin extends AutoPlugin {
   }
   import autoImport._
 
-  lazy val settings = Seq(
+  lazy val settings = Seq[Setting[_]](
 
     mainClass in wr <<= mainClass in run in Compile,
 

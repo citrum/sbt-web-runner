@@ -1,4 +1,4 @@
-package rosrabota.webrunner
+package webrunner
 
 case class DebugSettings(port: Int = 5005, suspend: Boolean = false) {
   def toCmdLineArg: String =

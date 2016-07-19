@@ -1,7 +1,7 @@
-package rosrabota.webrunner.server
+package webrunner.server
 import java.io.{IOException, OutputStream}
 
-import rosrabota.webrunner.{AppProcess, GlobalState, WebRunnerState}
+import webrunner.{AppProcess, GlobalState, WebRunnerState}
 import sbt.ProjectRef
 
 class WebServer(host: String, port: Int) extends SimpleHttpServerBase(host, port) {

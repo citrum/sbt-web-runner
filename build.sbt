@@ -1,13 +1,9 @@
 sbtPlugin := true
 
+sources in doc in Compile := List()
 scalacOptions := Seq("-deprecation", "-encoding", "utf8", "-unchecked", "-deprecation", "-feature", "-language:existentials")
+scalaVersion := "2.10.6"
 
-///////////////
-// ls-sbt
-///////////////
-
-seq(lsSettings :_*)
-
-(LsKeys.tags in LsKeys.lsync) := Seq("sbt-plugin", "sbt", "plugin", "jrebel")
-
-(LsKeys.docsUrl in LsKeys.lsync) <<= homepage
+sourceDirectory in Compile <<= baseDirectory(_ / "src")
+scalaSource in Compile <<= baseDirectory(_ / "src")
+javaSource in Compile <<= baseDirectory(_ / "src")

@@ -1,4 +1,4 @@
-package rosrabota.webrunner
+package webrunner
 
 object Colors {
   import scala.Console._

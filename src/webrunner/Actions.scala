@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package rosrabota.webrunner
+package webrunner
 
 import java.io.File
 import java.net.BindException
 
-import rosrabota.webrunner.server.WebServer
+import webrunner.server.WebServer
 import sbt.Keys._
 import sbt._
 

@@ -1,4 +1,0 @@
-This is a small maintenance release:
-
-- Fixed #10 (Bad type for Revolver.settings)
-- Upgraded to Scala 2.9.2

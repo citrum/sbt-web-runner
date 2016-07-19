@@ -1,4 +1,4 @@
-package rosrabota.webrunner.server
+package webrunner.server
 
 import java.io.IOException
 import java.net.InetSocketAddress

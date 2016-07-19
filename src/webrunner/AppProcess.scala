@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package rosrabota.webrunner
+package webrunner
 
 import java.lang.Thread.UncaughtExceptionHandler
 import java.lang.reflect.Field

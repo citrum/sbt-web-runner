@@ -1,4 +1,4 @@
-package rosrabota.webrunner
+package webrunner
 
 import java.util.concurrent.atomic.AtomicReference
 

@@ -1,4 +1,4 @@
-package rosrabota.webrunner
+package webrunner
 
 import java.io.File
 import java.nio.file.StandardWatchEventKinds._
