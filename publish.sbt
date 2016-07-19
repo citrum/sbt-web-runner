@@ -1,6 +1,6 @@
 name := "sbt-web-runner"
 organization := "com.github.citrum.webby"
-version := "0.3"
+version := "0.8"
 
 description := "An SBT plugin for fast & automatic code reloading for web applications. Based on spray/sbt-revolver"
 homepage := Some(url("https://github.com/citrum/sbt-web-runner"))
