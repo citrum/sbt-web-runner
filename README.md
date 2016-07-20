@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/citrum/sbt-web-runner.svg?branch=master)](https://travis-ci.org/citrum/sbt-web-runner)
+[![Download](https://api.bintray.com/packages/citrum/sbt-plugins/sbt-web-runner/images/download.svg)](https://bintray.com/citrum/sbt-plugins/sbt-web-runner/_latestVersion)
 
 An SBT plugin for fast & automatic code reloading for web applications.
 
