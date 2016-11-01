@@ -2,7 +2,7 @@ package webrunner
 
 import java.io.File
 import java.nio.file.StandardWatchEventKinds._
-import java.nio.file.{FileSystems, Path => JPath, WatchEvent, WatchKey, WatchService}
+import java.nio.file.{FileSystems, Files, WatchEvent, WatchKey, WatchService, Path => JPath}
 import java.util.concurrent.TimeUnit
 
 import sbt.FileFilter
@@ -49,9 +49,14 @@ class FileWatcher {
         event.kind() match {
           case OVERFLOW => changedFiles ++= lastResult
           case _ =>
-            val path: JPath = event.asInstanceOf[WatchEvent[JPath]].context()
-            val file: File = path.toFile
+            val localPath: JPath = event.asInstanceOf[WatchEvent[JPath]].context()
+            val file: File = key.watchable().asInstanceOf[JPath].resolve(localPath).toFile
             if (filter.accept(file)) changedFiles += file
+
+            if (file.isDirectory && (event.kind() == ENTRY_CREATE || event.kind() == ENTRY_MODIFY)) {
+              // New directory added, or renamed. We must include it in the watch list.
+              addDirRecursively(file)
+            }
         }
       }
       // idea сохраняет файлы через переименование, поэтому следует немного подождать, пока процесс завершится
