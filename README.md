@@ -7,7 +7,7 @@ Based on [spray/sbt-revolver].
 
 ## License
 
-_webby-sbt-plugin_ is licensed under [Apache License 2.0].
+_sbt-web-runner_ is licensed under [Apache License 2.0].
 
   [spray/sbt-revolver]: https://github.com/spray/sbt-revolver
   [Apache License 2.0]: http://www.apache.org/licenses/LICENSE-2.0
