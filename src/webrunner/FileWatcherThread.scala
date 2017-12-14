@@ -74,10 +74,15 @@ case class FileWatcherThread(streams: TaskStreams,
         _compiling = false
         GlobalState.notifyListeners()
 
-        if (!hasJRebel && !_compileError) {
-          Project.runTask(WebRunnerPlugin.autoImport.wr, afterCompileState)
-          GlobalState.notifyListeners()
-          _stopping = true
+        if (!_compileError) {
+          // Nullify lastThread here to make sure new thread started from `wr` will not stop
+          FileWatcherThread.lastThread = null
+
+          if (!hasJRebel) {
+            Project.runTask(WebRunnerPlugin.autoImport.wr, afterCompileState)
+            GlobalState.notifyListeners()
+            _stopping = true
+          }
         }
       }
       else if (changed.exists(assetFileFilter.accept)) {
@@ -87,10 +92,9 @@ case class FileWatcherThread(streams: TaskStreams,
         GlobalState.notifyListeners()
       }
     }
-    if (FileWatcherThread.lastThread != this) {
-      streams.log.error("FileWatcherThread.lastThread != this did not finished! Stopping this thread.")
+    if (FileWatcherThread.lastThread == this) {
+      FileWatcherThread.lastThread = null
     }
-    FileWatcherThread.lastThread = null
   }
 }
 
