@@ -20,39 +20,37 @@ import java.lang.Thread.UncaughtExceptionHandler
 import java.lang.reflect.Field
 import java.lang.{Runtime => JRuntime}
 
-import sbt.{Logger, Process, ProjectRef}
+import sbt.{Logger, ProjectRef}
+
+import scala.sys.process.Process
 
 /**
  * A token which we put into the SBT state to hold the Process of an application running in the background.
  */
-case class AppProcess(projectRef: ProjectRef, log: Logger, fileWatcherThread: FileWatcherThread, onExit: (Int) => Any)(process: Process) {
+case class AppProcess(projectRef: ProjectRef, log: Logger, fileWatcherThread: FileWatcherThread, onExit: Int => Any)(process: Process) {
   if (!fileWatcherThread.isAlive) fileWatcherThread.start()
 
   val shutdownHook = createShutdownHook("... killing ...")
 
   def createShutdownHook(msg: => String) =
-    new Thread(new Runnable {
-      def run() {
-        if (isRunning) {
-          log.info(msg)
-          killProcess()
-        }
+    new Thread(() => {
+      if (isRunning) {
+        log.info(msg)
+        killProcess()
       }
     })
 
   @volatile var finishState: Option[Int] = None
 
   val watchThread = {
-    val thread = new Thread(new Runnable {
-      def run() {
-        val code = process.exitValue()
-        finishState = Some(code)
-        log.info("... finished with exit code " + code)
-        fileWatcherThread.markStop()
-        unregisterShutdownHook()
-        Actions.unregisterAppProcess(projectRef)
-        onExit(code)
-      }
+    val thread = new Thread(() => {
+      val code = process.exitValue()
+      finishState = Some(code)
+      log.info("... finished with exit code " + code)
+      fileWatcherThread.markStop()
+      unregisterShutdownHook()
+      Actions.unregisterAppProcess(projectRef)
+      onExit(code)
     })
     thread.start()
     thread

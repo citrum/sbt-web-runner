@@ -19,9 +19,11 @@ package webrunner
 import java.io.File
 import java.net.BindException
 
-import webrunner.server.WebServer
 import sbt.Keys._
 import sbt._
+import webrunner.server.WebServer
+
+import scala.sys.process
 
 object Actions {
   def startApp(streams: TaskStreams, project: ProjectRef, options: ForkOptions, mainClass: Option[String],
@@ -114,13 +116,12 @@ object Actions {
 
   case class ExtraCmdLineOptions(jvmArgs: Seq[String], startArgs: Seq[String])
 
-  def forkRun(config: ForkOptions, mainClass: String, classpath: Seq[File], options: Seq[String], log: Logger, extraJvmArgs: Seq[String]): Process = {
+  def forkRun(config: ForkOptions, mainClass: String, classpath: Seq[File], options: Seq[String], log: Logger, extraJvmArgs: Seq[String]): process.Process = {
     log.info(options.mkString("Starting " + mainClass + ".main(", ", ", ")"))
     val scalaOptions = "-classpath" :: Path.makeString(classpath) :: mainClass :: options.toList
     val newOptions =
-      config.copy(
-        outputStrategy = Some(config.outputStrategy getOrElse LoggedOutput(log)),
-        runJVMOptions = config.runJVMOptions ++ extraJvmArgs)
+      config.withOutputStrategy(Some(config.outputStrategy getOrElse LoggedOutput(log)))
+          .withRunJVMOptions(config.runJVMOptions ++ extraJvmArgs)
 
     Fork.java.fork(newOptions, scalaOptions)
   }

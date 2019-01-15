@@ -2,13 +2,12 @@ package webrunner
 
 import java.io.File
 import java.nio.file.StandardWatchEventKinds._
-import java.nio.file.{FileSystems, Files, WatchEvent, WatchKey, WatchService, Path => JPath}
+import java.nio.file.{FileSystems, WatchEvent, WatchKey, WatchService, Path => JPath}
 import java.util.concurrent.TimeUnit
 
 import sbt.FileFilter
 
 import scala.annotation.tailrec
-import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 class FileWatcher {
@@ -45,7 +44,7 @@ class FileWatcher {
     if (key == null) lastResult
     else {
       val changedFiles: mutable.Set[File] = mutable.Set.empty
-      key.pollEvents().foreach {event =>
+      key.pollEvents().forEach {event =>
         event.kind() match {
           case OVERFLOW => changedFiles ++= lastResult
           case _ =>

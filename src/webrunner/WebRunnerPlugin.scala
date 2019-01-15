@@ -16,9 +16,9 @@
 
 package webrunner
 
-import webrunner.Actions._
 import sbt.Keys._
 import sbt._
+import webrunner.Actions._
 
 object WebRunnerPlugin extends AutoPlugin {
 
@@ -36,9 +36,9 @@ object WebRunnerPlugin extends AutoPlugin {
 
   lazy val settings = Seq[Setting[_]](
 
-    mainClass in wr <<= mainClass in run in Compile,
+    mainClass in wr := (mainClass in run in Compile).value,
 
-    fullClasspath in wr <<= fullClasspath in Runtime,
+    fullClasspath in wr := (fullClasspath in Runtime).value,
 
     wr := {
       val state = Keys.state.value
@@ -61,10 +61,10 @@ object WebRunnerPlugin extends AutoPlugin {
     },
     aggregate in wr := false,
 
-    ws <<= (streams, thisProjectRef).map(stopAppWithStreams),
+    ws := stopAppWithStreams(streams.value, thisProjectRef.value),
     aggregate in ws := false,
 
-    wrStatus <<= (streams, thisProjectRef) map showStatus,
+    wrStatus := showStatus(streams.value, thisProjectRef.value),
     aggregate in wrStatus := false,
 
     // default: no arguments to the app
@@ -86,15 +86,15 @@ object WebRunnerPlugin extends AutoPlugin {
     },
 
     // bundles the various parameters for forking
-    wrForkOptions <<= (taskTemporaryDirectory, baseDirectory in wr, javaOptions in wr, outputStrategy, javaHome) map ((tmp, base, jvmOptions, strategy, javaHomeDir) =>
-      ForkOptions(
-        javaHomeDir,
-        strategy,
-        Nil, // bootJars is empty by default because only jars on the user's classpath should be on the boot classpath
-        workingDirectory = Some(base),
-        runJVMOptions = jvmOptions,
-        connectInput = false
-      )),
+    wrForkOptions := {
+      taskTemporaryDirectory.value
+      // bootJars is empty by default because only jars on the user's classpath should be on the boot classpath
+      ForkOptions()
+        .withJavaHome(javaHome.value)
+        .withOutputStrategy(outputStrategy.value)
+        .withWorkingDirectory(Some((baseDirectory in wr).value))
+        .withRunJVMOptions((javaOptions in wr).value.toVector)
+    },
 
     // stop a possibly running application if the project is reloaded and the state is reset
     onUnload in Global ~= {onUnload => state =>
@@ -123,5 +123,5 @@ object WebRunnerPlugin extends AutoPlugin {
 //    changeJavaOptionsWithExtra(sbt.Keys.baseDirectory /* just an ignored dummy */)((jvmArgs, path, _) => f(jvmArgs, path))
 
   def changeJavaOptionsWithExtra[T](extra: SettingKey[T])(f: (Seq[String], String, String, T) => Seq[String]): Setting[_] =
-    javaOptions in wr <<= (javaOptions, wrJRebelJar, wrJRebel6AgentPath, extra) map f
+    javaOptions in wr := f(javaOptions.value, wrJRebelJar.value, wrJRebel6AgentPath.value, extra.value)
 }
